@@ -1,0 +1,79 @@
+# Test for issue #7326
+# INSERT followed by UNION should parse as separate statements
+file:
+- batch:
+  - statement:
+    - begin_end_block:
+      - keyword: BEGIN
+      - statement:
+        - insert_statement:
+          - keyword: INSERT
+          - keyword: INTO
+          - table_reference:
+            - hash_identifier: '#temp'
+          - bracketed:
+            - column_reference:
+              - naked_identifier: a
+            - column_reference:
+              - naked_identifier: b
+          - select_statement:
+            - select_clause:
+              - keyword: SELECT
+              - select_clause_element:
+                - column_reference:
+                  - naked_identifier: x
+              - select_clause_element:
+                - column_reference:
+                  - naked_identifier: y
+            - from_clause:
+              - keyword: FROM
+              - from_expression:
+                - from_expression_element:
+                  - table_expression:
+                    - table_reference:
+                      - naked_identifier: table1
+            - groupby_clause:
+              - keyword: GROUP
+              - keyword: BY
+              - column_reference:
+                - naked_identifier: x
+              - column_reference:
+                - naked_identifier: y
+      - statement:
+        - set_expression:
+          - select_statement:
+            - select_clause:
+              - keyword: SELECT
+              - select_clause_element:
+                - column_reference:
+                  - naked_identifier: c
+              - select_clause_element:
+                - column_reference:
+                  - naked_identifier: d
+            - from_clause:
+              - keyword: FROM
+              - from_expression:
+                - from_expression_element:
+                  - table_expression:
+                    - table_reference:
+                      - naked_identifier: table2
+          - set_operator:
+            - keyword: UNION
+            - keyword: ALL
+          - select_statement:
+            - select_clause:
+              - keyword: SELECT
+              - select_clause_element:
+                - column_reference:
+                  - naked_identifier: e
+              - select_clause_element:
+                - column_reference:
+                  - naked_identifier: f
+            - from_clause:
+              - keyword: FROM
+              - from_expression:
+                - from_expression_element:
+                  - table_expression:
+                    - table_reference:
+                      - naked_identifier: table3
+      - keyword: END
