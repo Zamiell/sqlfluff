@@ -64,3 +64,6 @@ plugins/sqlfluff-templater-dbt/test/fixtures/dbt/dbt_project/packages.yml
 # Mypyc outputs
 *.pyd
 *.so
+
+# Agents
+.claude

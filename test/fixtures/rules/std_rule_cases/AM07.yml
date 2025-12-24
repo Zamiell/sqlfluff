@@ -518,3 +518,55 @@ test_pass_dbt_union_relations_output:
     )
 
     select * from unified_partitions
+
+test_tsql_insert_select_followed_by_union:
+  # Test for issue 7326: False positive AM07 when INSERT INTO...SELECT is
+  # followed by UNION ALL without semicolon separator
+  # https://github.com/sqlfluff/sqlfluff/issues/7326
+  desc: INSERT INTO...SELECT (4 cols) followed by UNION ALL (3 cols) should not trigger AM07
+  pass_str: |
+    CREATE PROCEDURE [dbo].[usp_ReprexParsingBug]
+        @LstDiagnosis [dbo].[DiagnosisList] READONLY
+    AS
+    BEGIN
+        CREATE TABLE #DiagRestrictionIDs(
+            ID INT IDENTITY(1,1),
+            DiagnosisRestrictionID BIGINT,
+            DiagnosisDistinction VARCHAR(20),
+            IsRestrictionType BIT,
+            ConfigureMessage varchar(8000)
+        )
+
+        -- 1. INSERT statement with 4 columns
+        INSERT INTO #DiagRestrictionIDs(DiagnosisRestrictionID, DiagnosisDistinction,IsRestrictionType,ConfigureMessage)
+        SELECT
+            mdr.ID,
+            mdr.DiagnosisDistinction,
+            mdr.IsRestrictionType,
+            mdr.ConfigureMessage
+        FROM UnknownTable_Source mdrc
+        INNER JOIN UnknownTable_Restrictions mdr ON mdr.ID = mdrc.ID
+        GROUP BY mdr.ID, mdr.DiagnosisDistinction, mdr.IsRestrictionType, mdr.ConfigureMessage
+        -- MISSING SEMICOLON HERE - parser incorrectly merges this with next query
+
+        -- 2. UNION query with 3 columns (should NOT trigger AM07)
+        SELECT
+            lst.Diagnosis,
+            mdr.IsRestrictionType,
+            mdr.ConfigureMessage
+        FROM #DiagRestrictionIDs mdr
+        INNER JOIN UnknownTable_Codes drd ON mdr.DiagnosisRestrictionID = drd.MdDiagnosisCongifurationId
+        INNER JOIN @LstDiagnosis lst ON drd.MdDiagnosisCodeId = lst.MDDiagnosisID
+
+        UNION ALL
+
+        SELECT
+            lst.Diagnosis,
+            mdr.IsRestrictionType,
+            mdr.ConfigureMessage
+        FROM #DiagRestrictionIDs mdr
+        LEFT JOIN @LstDiagnosis lst ON 1=1
+    END
+  configs:
+    core:
+      dialect: tsql
